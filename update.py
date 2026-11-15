@@ -40,7 +40,11 @@ OUT_FILE = os.path.join(HERE, "mine.json")
 def get(url, key):
     """GET mit Wiederholung bei Rate-Limit und Serverfehlern."""
     for attempt in range(8):
-        req = urllib.request.Request(url, headers={"X-Riot-Token": key})
+        req = urllib.request.Request(url, headers={
+            "X-Riot-Token": key,
+            "User-Agent": "yone-hub/1.0 (persoenliche Statistik-Seite)",
+            "Accept": "application/json",
+        })
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
                 return json.load(r)
@@ -52,7 +56,12 @@ def get(url, key):
                 time.sleep(3 * (attempt + 1))
                 continue
             if e.code in (401, 403):
-                sys.exit("Riot-API meldet %d: Der API-Key ist ungültig oder abgelaufen." % e.code)
+                try:
+                    body = e.read().decode("utf-8", "replace")[:300]
+                except Exception:
+                    body = ""
+                sys.exit("Riot-API meldet %d: Der API-Key wird nicht akzeptiert. Länge des Keys: %d Zeichen, "
+                         "beginnt mit RGAPI-: %s. Antwort: %s" % (e.code, len(key), key.startswith("RGAPI-"), body))
             if e.code == 404:
                 return None
             raise
